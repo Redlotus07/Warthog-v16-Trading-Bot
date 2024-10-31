@@ -1,3 +1,4 @@
+// backend/controllers/tradeController.js
 import { Trade } from '../models/Trade.js';
 import { validateTrade } from '../validators/tradeValidator.js';
 import { calculatePosition } from '../services/positionSizing.js';
@@ -52,5 +53,3 @@ export const openTrade = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
-
-// ... rest of the controller methods ...
