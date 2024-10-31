@@ -28,20 +28,22 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
+// Connect to the database
+connectDB();
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/trades', tradeRoutes);
-app.use('/api/bot', botRoutes);
+app.use('/api/bots', botRoutes);
 
-// Error handling
+// Error handling middleware
 app.use(errorHandler);
 
+// Start the server
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
   try {
-    await connectDB();
-    
     // Start the server
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
