@@ -86,40 +86,6 @@ class MarketDataService {
     return this.processMarketData(successfulResponse.value.data);
   }
 
-  async getHistoricalData(pair, timeframe, limit = 1000) {
-    const cacheKey = `historical:${pair}:${timeframe}:${limit}`;
-    
-    try {
-      const cachedData = await this.cache.get(cacheKey);
-      if (cachedData) {
-        return JSON.parse(cachedData);
-      }
-
-      const data = await this.fetchHistoricalData(pair, timeframe, limit);
-      await this.cache.setex(cacheKey, 300, JSON.stringify(data));
-      
-      return data;
-    } catch (error) {
-      console.error(`Error fetching historical data for ${pair}:`, error);
-      throw error;
-    }
-  }
-
-  async fetchHistoricalData(pair, timeframe, limit) {
-    const responses = await Promise.allSettled(
-      this.dataProviders.map(provider =>
-        axios.get(`${provider.url}/historical-data/${pair}/${timeframe}/${limit}`)
-      )
-    );
-
-    const successfulResponse = responses.find(r => r.status === 'fulfilled');
-    if (!successfulResponse) {
-      throw new Error('Failed to fetch historical data from all providers');
-    }
-
-    return this.processHistoricalData(successfulResponse.value.data);
-  }
-
   // ... Additional methods for handling WebSocket messages, health checks, and error handling
 }
 
