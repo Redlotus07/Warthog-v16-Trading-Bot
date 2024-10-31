@@ -33,7 +33,7 @@ const Settings = () => {
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setSettings(prev => ({
       ...prev,
@@ -41,7 +41,7 @@ const Settings = () => {
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       await axios.post('/api/settings', settings);
@@ -79,18 +79,32 @@ const Settings = () => {
       {/* ... (header and form as before) ... */}
       
       {error && (
-        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500">
-          {error}
+        <div className="p-4 bg-red-500 /20 rounded-lg text-red-400">
+          <AlertTriangle size={20} />
+          <span>{error}</span>
         </div>
       )}
       
       {successMessage && (
-        <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg text-green-500">
-          {successMessage}
+        <div className="p-4 bg-green-500/20 rounded-lg text-green-400">
+          <Save size={20} />
+          <span>{successMessage}</span>
         </div>
       )}
       
-      {/* ... (rest of the component as before) ... */}
+      <button
+        className="bg-orange-500 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded"
+        onClick={handleBotToggle}
+      >
+        {settings.botActive ? 'Deactivate Bot' : 'Activate Bot'}
+      </button>
+      
+      <button
+        className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+        onClick={handleImmediateShutdown}
+      >
+        Shut Down Bot Immediately
+      </button>
     </div>
   );
 };
