@@ -35,4 +35,18 @@ class TechnicalAnalysisService {
   }
 
   analyzeTrend(prices) {
-    const sma20 = technicalindicators.
+    const sma20 = technicalindicators. EMA.calculate({ values: prices, period: 20 });
+    const sma50 = technicalindicators.EMA.calculate({ values: prices, period: 50 });
+    const sma100 = technicalindicators.EMA.calculate({ values: prices, period: 100 });
+
+    if (sma20 > sma50 && sma50 > sma100) {
+      return 'Bullish';
+    } else if (sma20 < sma50 && sma50 < sma100) {
+      return 'Bearish';
+    } else {
+      return 'Neutral';
+    }
+  }
+}
+
+export const technicalAnalysisService = new TechnicalAnalysisService();
