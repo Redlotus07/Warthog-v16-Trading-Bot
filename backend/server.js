@@ -1,3 +1,4 @@
+// backend/server.js
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -6,7 +7,10 @@ import dotenv from 'dotenv';
 import { connectDB } from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import tradeRoutes from './routes/tradeRoutes.js';
+import botRoutes from './routes/botRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import cron from 'node-cron';
+import { executeTradingCycle } from './services/tradingService.js';
 
 dotenv.config();
 
@@ -27,6 +31,7 @@ app.use(limiter);
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/trades', tradeRoutes);
+app.use('/api/bot', botRoutes);
 
 // Error handling
 app.use(errorHandler);
@@ -36,9 +41,18 @@ const PORT = process.env.PORT || 5000;
 const startServer = async () => {
   try {
     await connectDB();
+    
+    // Start the server
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
+
+    // Schedule trading cycle
+    cron.schedule('* * * * *', async () => {
+      console.log('Executing trading cycle...');
+      await executeTradingCycle();
+    });
+
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);
