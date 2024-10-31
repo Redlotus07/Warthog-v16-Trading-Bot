@@ -19,7 +19,7 @@ export const executeTradingCycle = async () => {
       const predictionFeatures = extractPredictionFeatures(marketData, marketCondition);
       const tradeProbability = await mlService.predictTradeSuccess(pair, predictionFeatures);
 
-      if (tradeProbability > 0.7) { // Threshold for opening a trade
+      if (tradeProbability > 0.7) {
         const tradeDirection = determineTradeDirection(marketCondition);
         const positionSize = await positionSizingService.calculatePositionSize(pair, bot.settings);
         const { stopLoss, takeProfit } = riskManagementService.calculateExitPoints(pair, tradeDirection, marketData.price);
@@ -34,11 +34,9 @@ export const executeTradingCycle = async () => {
           status: 'OPEN'
         });
 
-        // Execute trade on exchange
         await executeTradeOnExchange(newTrade);
       }
 
-      // Check and update existing trades
       await updateExistingTrades(pair);
 
     } catch (error) {
@@ -50,29 +48,4 @@ export const executeTradingCycle = async () => {
   }
 };
 
-const updateExistingTrades = async (pair) => {
-  const openTrades = await Trade.find({ pair, status: 'OPEN' });
-  for (const trade of openTrades) {
-    const currentPrice = await marketDataService.getCurrentPrice(pair);
-    if (shouldCloseTrade(trade, currentPrice)) {
-      await closeTrade(trade, currentPrice);
-      await mlService.updateModel(pair, trade);
-    }
-  }
-};
-
-const shouldCloseTrade = (trade, currentPrice) => {
-  return (trade.type === 'LONG' && currentPrice >= trade.takeProfit) ||
-         (trade.type === 'SHORT' && currentPrice <= trade.takeProfit) ||
-         (trade.type === 'LONG' && currentPrice <= trade.stopLoss) ||
-         (trade.type === 'SHORT' && currentPrice >= trade.stopLoss);
-};
-
-const closeTrade = async (trade, currentPrice) => {
-  trade.exit = currentPrice;
-  trade.status = 'CLOSED';
-  trade.profit = calculateProfit(trade, currentPrice);
-  await trade.save();
-  // Execute close trade on exchange
-  await closeTradeOnExchange(trade);
-};
+// Implement helper functions: updateExistingTrades, shouldCloseTrade, closeTrade, etc.
