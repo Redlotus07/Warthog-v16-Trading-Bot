@@ -1,36 +1,42 @@
+// backend/services/riskManagementService.js
+import { Bot } from '../models/Bot.js';
 import { Trade } from '../models/Trade.js';
-import { User } from '../models/User.js';
 
-export const checkRiskLimits = async (userId, tradeData) => {
-  try {
-    const user = await User.findById(userId);
-    const openTrades = await Trade.countDocuments({
-      user: userId,
-      status: 'OPEN'
-    });
-
-    if (openTrades >= user.settings.maxOpenTrades) {
-      return {
-        allowed: false,
-        message: 'Maximum number of open trades reached'
-      };
-    }
-
-    const riskAmount = calculateRiskAmount(tradeData, user.settings.riskPerTrade);
-    if (riskAmount > user.settings.maxRiskPerTrade) {
-      return {
-        allowed: false,
-        message: 'Trade risk exceeds maximum allowed risk per trade'
-      };
-    }
-
-    return { allowed: true };
-  } catch (error) {
-    throw new Error('Failed to check risk limits');
+class RiskManagementService {
+  constructor() {
+    this.maximumDrawdown = -5; // 5% maximum drawdown
+    this.maximumRiskPerTrade = 2; // 2% maximum risk per trade
   }
-};
 
-const calculateRiskAmount = (tradeData, riskPercentage) => {
-  const { entry, stopLoss, size } = tradeData;
-  return Math.abs(entry - stopLoss) * size * (riskPercentage / 100);
-};
+  async checkRiskExposure() {
+    const bot = await Bot.findOne({ active: true });
+    if (!bot) return true;
+
+    const openTrades = await Trade.find({ status: 'OPEN' });
+    const totalRisk = openTrades.reduce((acc, trade) => acc + trade.risk, 0);
+
+    return totalRisk <= this.maximumRiskPerTrade * bot.balance;
+  }
+
+  async checkDrawdownLevels() {
+    const bot = await Bot.findOne({ active: true });
+    if (!bot) return { passed: true, reason: '' };
+
+    const currentBalance = bot.balance;
+    const peakBalance = bot.peakBalance;
+
+    const drawdown = (peakBalance - currentBalance) / peakBalance * 100;
+
+    return {
+      passed: drawdown <= this.maximumDrawdown,
+      reason: `Drawdown level: ${drawdown.toFixed(2)}%`
+    };
+  }
+
+  async adjustRiskParameters(bot, metrics) {
+    // Adjust risk parameters based on performance metrics
+    // Implementation details...
+  }
+}
+
+export const riskManagementService = new RiskManagementService();
