@@ -1,3 +1,4 @@
+// backend/services/brokers/liteFinanceService.js
 import WebSocket from 'ws';
 import axios from 'axios';
 
@@ -78,15 +79,15 @@ class LiteFinanceService {
   handleMessage(message) {
     switch (message.type) {
       case 'price':
-        this.handlePriceUpdate(message);
-        break;
-      case 'trade':
-        this.handleTradeUpdate(message);
-        break;
-      case 'error':
-        console.error('LiteFinance error:', message.error);
-        break;
+        this.handlePriceUpdate(message); break;
+      default:
+        console.log(`Received unknown message type: ${message.type}`);
     }
+  }
+
+  handlePriceUpdate(message) {
+    const { symbol, price } = message;
+    this.subscribers.get(symbol).forEach((callback) => callback(price));
   }
 }
 
