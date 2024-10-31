@@ -35,27 +35,4 @@ class TechnicalAnalysisService {
   }
 
   analyzeTrend(prices) {
-    const sma20 = technicalindicators.SMA.calculate({
-      values: prices,
-      period: 20
-    });
-
-    const sma50 = technicalindicators.SMA.calculate({
-      values: prices,
-      period: 50
-    });
-
-    const lastSma20 = sma20[sma20.length - 1];
-    const lastSma50 = sma50[sma50.length - 1];
-    const prevSma20 = sma20[sma20.length - 2];
-    const prevSma50 = sma50[sma50.length - 2];
-
-    return {
-      trend: lastSma20 > lastSma50 ? 'UPTREND' : 'DOWNTREND',
-      strength: Math.abs(lastSma20 - lastSma50) / lastSma50,
-      momentum: (lastSma20 - prevSma20) / prevSma20
-    };
-  }
-}
-
-export const technicalAnalysisService = new TechnicalAnalysisService();
+    const sma20 = technicalindicators.
