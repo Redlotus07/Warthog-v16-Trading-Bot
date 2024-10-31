@@ -50,18 +50,31 @@ class MarketDataService {
     });
   }
 
+  subscribeToMarketData(ws) {
+    const subscriptionMessage = {
+      type: 'subscribe',
+      channels: ['ticker'],
+      pairs: this.getTradingPairs()
+    };
+    ws.send(JSON.stringify(subscriptionMessage));
+  }
+
+  handleWebSocketMessage(data, providerName) {
+    const parsedData = JSON.parse(data);
+    if (parsedData.type === 'ticker') {
+      this.updateCache(parsedData);
+      this.notifySubscribers(parsedData);
+    }
+  }
+
   async getLatestData(pair) {
     try {
-      // Try to get from cache first
       const cachedData = await this.cache.get(`market:${pair}`);
       if (cachedData) {
         return JSON.parse(cachedData);
       }
 
-      // Fetch fresh data
       const data = await this.fetchMarketData(pair);
-      
-      // Cache the data
       await this.cache.setex(`market:${pair}`, 60, JSON.stringify(data));
       
       return data;
@@ -86,7 +99,54 @@ class MarketDataService {
     return this.processMarketData(successfulResponse.value.data);
   }
 
-  // ... Additional methods for handling WebSocket messages, health checks, and error handling
+  updateCache(data) {
+    this.cache.set(`market:${data.pair}`, JSON.stringify(data), 'EX', 60);
+  }
+
+  notifySubscribers(data) {
+    const subscribers = this.subscribers.get(data.pair) || [];
+    subscribers.forEach(callback => callback(data));
+  }
+
+  subscribe(pair, callback) {
+    if (!this.subscribers.has(pair)) {
+      this.subscribers.set(pair, new Set());
+    }
+    this.subscribers.get(pair).add(callback);
+  }
+
+  unsubscribe(pair, callback) {
+    const subscribers = this.subscribers.get(pair);
+    if (subscribers) {
+      subscribers.delete(callback);
+    }
+  }
+
+  getTradingPairs() {
+    // Implement logic to get trading pairs from configuration or database
+    return ['BTC/USD', 'ETH/USD', 'XAU/USD', 'XAG/USD'];
+  }
+
+  startHealthCheck() {
+    setInterval(() => {
+      this.connections.forEach((ws, name) => {
+        if (ws.readyState === WebSocket.CLOSED) {
+          console.log(`Reconnecting to ${name} websocket`);
+          this.setupWebSockets();
+        }
+      });
+    }, 30000); // Check every 30 seconds
+  }
+
+  handleConnectionError(provider) {
+    console.log(`Switching to backup provider for ${provider.name}`);
+    // Implement logic to switch to backup provider
+  }
+
+  processMarketData(data) {
+    // Implement any necessary data processing
+    return data;
+  }
 }
 
 export const marketDataService = new MarketDataService();
