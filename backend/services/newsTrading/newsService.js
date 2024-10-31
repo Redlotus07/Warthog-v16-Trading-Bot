@@ -1,3 +1,4 @@
+// backend/services/newsTrading/newsService.js
 import axios from 'axios';
 import { mlService } from '../mlService.js';
 import { performanceTracker } from '../performanceTracking.js';
@@ -30,4 +31,9 @@ class NewsService {
     
     return {
       expectedVolatility: this.calculateExpectedVolatility(historicalImpact),
-      recommendedAction: this.getTradeRecommendation(event, market
+      recommendedAction: this.getTradeRecommendation(event, marketCondition)
+    };
+  }
+}
+
+export const newsService = new NewsService();
