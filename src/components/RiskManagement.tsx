@@ -1,3 +1,4 @@
+// src/components/RiskManagement.tsx
 import React, { useState, useEffect } from 'react';
 import { Shield, AlertTriangle, TrendingUp, DollarSign, Percent, Activity } from 'lucide-react';
 import axios from 'axios';
