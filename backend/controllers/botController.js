@@ -1,45 +1,45 @@
 // backend/controllers/botController.js
 import { Bot } from '../models/Bot.js';
-import { Trade } from '../models/Trade.js';
+import { tradingService } from '../services/tradingService.js';
 
-export const getBotStatus = async (req, res) => {
+export const startTrading = async (req, res) => {
   try {
-    const bot = await Bot.findOne({});
+    const botId = req.params.botId;
+    const bot = await Bot.findById(botId);
     if (!bot) {
-      return res.status(404).json({ message: 'Bot configuration not found' });
+      return res.status(404).json({ message: 'Bot not found' });
     }
-    res.json({ active: bot.active, autoShutdownEnabled: bot.autoShutdownEnabled });
+
+    bot.active = true;
+    await bot.save();
+
+    // Start the trading cycle
+    setInterval(async () => {
+      for (const pair of bot.settings.tradingPairs) {
+        await tradingService.analyzeTradingOpportunity(botId, pair);
+      }
+      await tradingService.monitorOpenTrades(botId);
+    }, 60000); // Run every minute
+
+    res.json({ message: 'Trading started successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to get bot status' });
+    res.status(500).json({ message: 'Error starting trading', error: error.message });
   }
 };
 
-export const toggleBot = async (req, res) => {
+export const stopTrading = async (req, res) => {
   try {
-    const { active } = req.body;
-    await Bot.findOneAndUpdate({}, { active }, { upsert: true });
-    res.json({ message: `Bot ${active ? 'activated' : 'deactivated'} successfully` });
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to toggle bot status' });
-  }
-};
-
-export const shutdownBot = async (req, res) => {
-  try {
-    await Bot.findOneAndUpdate({}, { active: false }, { upsert: true });
-    res.json({ message: 'Bot shut down successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to shut down bot' });
-  }
-};
-
-export const checkAutoShutdown = async () => {
-  const bot = await Bot.findOne({});
-  if (bot && bot.active && bot.autoShutdownEnabled) {
-    const openTrades = await Trade.countDocuments({ status: 'OPEN' });
-    if (openTrades === 0) {
-      await Bot.findOneAndUpdate({}, { active: false });
-      console.log('Bot auto-shutdown triggered: No open trades');
+    const botId = req.params.botId;
+    const bot = await Bot.findById(botId);
+    if (!bot) {
+      return res.status(404).json({ message: 'Bot not found' });
     }
+
+    bot.active = false;
+    await bot.save();
+
+    res.json({ message: 'Trading stopped successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error stopping trading', error: error.message });
   }
 };
