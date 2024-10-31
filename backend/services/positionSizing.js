@@ -1,84 +1,113 @@
+// backend/services/positionSizingService.js
 import { mlService } from './mlService.js';
-import { newsService } from './newsTrading/newsService.js';
-import { User } from '../models/User.js';
+import { riskManagementService } from './riskManagementService.js';
 
-export const calculatePosition = async (userId, tradeData) => {
-  const user = await User.findById(userId);
-  const { pair, type } = tradeData;
-
-  // Analyze market conditions including news impact
-  const marketCondition = await mlService.analyzeMarketCondition(pair);
-  const successProbability = await mlService.predictTradeSuccess(pair, tradeData);
-  const newsImpact = await newsService.analyzeNewsImpact(tradeData.newsEvent);
-  
-  // Base position size calculation
-  let baseSize = calculateBaseSize(user.settings.riskPerTrade, tradeData);
-  
-  // Adjust position size based on multiple factors
-  const adjustedSize = adjustPositionSize(
-    baseSize,
-    marketCondition,
-    successProbability,
-    newsImpact
-  );
-
-  // Calculate dynamic exit levels
-  const { stopLoss, takeProfit } = calculateExitLevels(
-    tradeData,
-    marketCondition,
-    newsImpact
-  );
-
-  return {
-    size: adjustedSize,
-    stopLoss,
-    takeProfit,
-    marketCondition,
-    newsImpact
-  };
-};
-
-const adjustPositionSize = (baseSize, marketCondition, probability, newsImpact) => {
-  let multiplier = 1;
-
-  // Market condition adjustments
-  switch (marketCondition.marketState) {
-    case 'HIGH_VOLATILITY':
-      multiplier *= 0.5;
-      break;
-    case 'LOW_VOLATILITY':
-      multiplier *= 1.2;
-      break;
+class PositionSizingService {
+  constructor() {
+    this.baseRiskPercentage = 1; // 1% base risk per trade
+    this.maxPositionSize = 5; // 5% of account balance
+    this.volatilityMultiplier = 0.8; // Reduce position size in high volatility
   }
 
-  // News impact adjustments
-  if (newsImpact.expectedVolatility > 0.5) {
-    multiplier *= 0.7; // Reduce size during high-impact news
+  async calculatePosition(pair, tradeData) {
+    const {
+      accountBalance,
+      confidence,
+      volatility,
+      marketCondition,
+      stopLoss,
+      entry
+    } = tradeData;
+
+    // Base position size calculation
+    let baseSize = this.calculateBaseSize(accountBalance, this.baseRiskPercentage);
+
+    // Adjust based on ML confidence
+    const confidenceMultiplier = this.getConfidenceMultiplier(confidence);
+    
+    // Adjust for volatility
+    const volatilityAdjustment = this.calculateVolatilityAdjustment(volatility);
+    
+    // Adjust for market conditions
+    const marketConditionMultiplier = this.getMarketConditionMultiplier(marketCondition);
+
+    // Calculate risk per pip
+    const riskPerPip = Math.abs(entry - stopLoss);
+
+    // Final position size calculation
+    let finalSize = baseSize * confidenceMultiplier * volatilityAdjustment * marketConditionMultiplier;
+
+    // Ensure position size doesn't exceed maximum allowed
+    finalSize = Math.min(finalSize, accountBalance * (this.maxPositionSize / 100));
+
+    // Adjust position size based on risk per pip
+    if (riskPerPip > 0) {
+      finalSize = this.adjustForRiskPerPip(finalSize, riskPerPip, accountBalance);
+    }
+
+    return {
+      size: finalSize,
+      riskAmount: this.calculateRiskAmount(finalSize, entry, stopLoss),
+      adjustments: {
+        confidence: confidenceMultiplier,
+        volatility: volatilityAdjustment,
+        marketCondition: marketConditionMultiplier
+      }
+    };
   }
 
-  // Trend strength adjustment
-  multiplier *= (0.5 + marketCondition.trend.strength);
+  calculateBaseSize(accountBalance, riskPercentage) {
+    return accountBalance * (riskPercentage / 100);
+  }
 
-  // ML prediction confidence adjustment
-  multiplier *= (0.5 + probability);
+  getConfidenceMultiplier(confidence) {
+    // Scale position size based on ML confidence
+    // 0.5 = minimum multiplier, 1.5 = maximum multiplier
+    return 0.5 + confidence;
+  }
 
-  return baseSize * multiplier;
-};
+  calculateVolatilityAdjustment(volatility) {
+    // Reduce position size in high volatility environments
+    return Math.max(0.2, 1 - (volatility * this.volatilityMultiplier));
+  }
 
-const calculateExitLevels = (tradeData, marketCondition, newsImpact) => {
-  const { entry, type } = tradeData;
-  const { volatility } = marketCondition;
+  getMarketConditionMultiplier(marketCondition) {
+    switch (marketCondition) {
+      case 'TRENDING':
+        return 1.2; // Increase size in trending markets
+      case 'RANGING':
+        return 0.8; // Reduce size in ranging markets
+      case 'HIGH_VOLATILITY':
+        return 0.6; // Significantly reduce size in highly volatile markets
+      default:
+        return 1.0;
+    }
+  }
 
-  // Adjust ATR based on news impact
-  const baseAtr = volatility * entry;
-  const adjustedAtr = baseAtr * (1 + newsImpact.expectedVolatility);
-  
-  const direction = type === 'LONG' ? 1 : -1;
-  
-  // Dynamic exit levels based on market conditions
-  return {
-    stopLoss: entry - (direction * adjustedAtr * 1.5),
-    takeProfit: entry + (direction * adjustedAtr * 
-      (newsImpact.expectedVolatility > 0.5 ? 3 : 2.5))
-  };
-};
+  adjustForRiskPerPip(size, riskPerPip, accountBalance) {
+    const maxRiskAmount = accountBalance * (this.baseRiskPercentage / 100);
+    const adjustedSize = maxRiskAmount / riskPerPip;
+    return Math.min(size, adjustedSize);
+  }
+
+  calculateRiskAmount(size, entry, stopLoss) {
+    return Math.abs(entry - stopLoss) * size;
+  }
+
+  async validatePosition(position, accountBalance) {
+    // Validate position against risk management rules
+    const riskCheck = await riskManagementService.validateRisk({
+      positionSize: position.size,
+      riskAmount: position.riskAmount,
+      accountBalance
+    });
+
+    return {
+      isValid: riskCheck.passed,
+      message: riskCheck.message,
+      adjustedSize: riskCheck.adjustedSize
+    };
+  }
+}
+
+export const positionSizingService = new PositionSizingService();
