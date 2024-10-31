@@ -1,27 +1,29 @@
-import React from 'react';
-import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
 const TradeHistory = () => {
-  const trades = [
-    {
-      id: 1,
-      pair: 'BTC/USD',
-      type: 'LONG',
-      entry: 51234.50,
-      exit: 52341.20,
-      profit: 1106.70,
-      date: '2024-03-10 14:23',
-    },
-    {
-      id: 2,
-      pair: 'XAG/USD',
-      type: 'SHORT',
-      entry: 24.56,
-      exit: 24.32,
-      profit: 240.00,
-      date: '2024-03-10 12:15',
-    },
-  ];
+  const [trades, setTrades] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchTradeHistory();
+  }, []);
+
+  const fetchTradeHistory = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get('/api/trades/history');
+      setTrades(response.data);
+    } catch (error) {
+      console.error('Failed to fetch trade history:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return <div>Loading trade history...</div>;
+  }
 
   return (
     <div className="rounded-xl bg-gray-800/50 border border-gray-700/50 backdrop-blur-sm p-6 mt-6">
@@ -40,19 +42,19 @@ const TradeHistory = () => {
           </thead>
           <tbody>
             {trades.map((trade) => (
-              <tr key={trade.id} className="border-t border-gray-700">
+              <tr key={trade._id} className="border-t border-gray-700">
                 <td className="py-4">{trade.pair}</td>
                 <td className={`py-4 ${
                   trade.type === 'LONG' ? 'text-green-400' : 'text-red-400'
                 }`}>
                   {trade.type}
                 </td>
-                <td className="py-4">${trade.entry}</td>
-                <td className="py-4">${trade.exit}</td>
+                <td className="py-4">${trade.entry.toFixed(2)}</td>
+                <td className="py-4">${trade.exit.toFixed(2)}</td>
                 <td className={`py-4 ${trade.profit > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  ${trade.profit}
+                  ${trade.profit.toFixed(2)}
                 </td>
-                <td className="py-4 text-gray-400">{trade.date}</td>
+                <td className="py-4 text-gray-400">{new Date(trade.exitTime).toLocaleString()}</td>
               </tr>
             ))}
           </tbody>
