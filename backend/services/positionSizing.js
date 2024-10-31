@@ -1,4 +1,4 @@
-// backend/services/positionSizingService.js
+// backend/services/positionSizing.js
 import { mlService } from './mlService.js';
 import { riskManagementService } from './riskManagementService.js';
 
@@ -62,7 +62,6 @@ class PositionSizingService {
 
   getConfidenceMultiplier(confidence) {
     // Scale position size based on ML confidence
-    // 0.5 = minimum multiplier, 1.5 = maximum multiplier
     return 0.5 + confidence;
   }
 
@@ -74,11 +73,11 @@ class PositionSizingService {
   getMarketConditionMultiplier(marketCondition) {
     switch (marketCondition) {
       case 'TRENDING':
-        return 1.2; // Increase size in trending markets
+        return 1.2;
       case 'RANGING':
-        return 0.8; // Reduce size in ranging markets
+        return 0.8;
       case 'HIGH_VOLATILITY':
-        return 0.6; // Significantly reduce size in highly volatile markets
+        return 0.6;
       default:
         return 1.0;
     }
@@ -92,21 +91,6 @@ class PositionSizingService {
 
   calculateRiskAmount(size, entry, stopLoss) {
     return Math.abs(entry - stopLoss) * size;
-  }
-
-  async validatePosition(position, accountBalance) {
-    // Validate position against risk management rules
-    const riskCheck = await riskManagementService.validateRisk({
-      positionSize: position.size,
-      riskAmount: position.riskAmount,
-      accountBalance
-    });
-
-    return {
-      isValid: riskCheck.passed,
-      message: riskCheck.message,
-      adjustedSize: riskCheck.adjustedSize
-    };
   }
 }
 
