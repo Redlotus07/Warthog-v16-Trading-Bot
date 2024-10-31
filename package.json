@@ -1,5 +1,21 @@
 {
+  "name": "warthog-v16-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "serve": "vite preview"
+  },
   "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.22.1",
+    "axios": "^1.6.7",
+    "recharts": "^2.12.0",
+    "lucide-react": "^0.330.0",
+    "zustand": "^4.5.1",
+    "tailwindcss": "^3.4.1",
     "@tanstack/react-query": "^5.18.1",    // Data fetching/caching
     "react-hook-form": "^7.50.1",          // Form handling
     "lightweight-charts": "^4.1.1",        // Trading charts
@@ -18,6 +34,11 @@
     "cypress": "^13.6.4"                   // E2E testing
   },
   "devDependencies": {
+    "@types/react": "^18.2.55",            // React types
+    "@types/react-dom": "^18.2.19",        // React DOM types
+    "@vitejs/plugin-react": "^4.2.1",      // Vite React plugin
+    "eslint": "^8.56.0",                   // Linting
+    "vite": "^5.1.0",                       // Build tool
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
     "prettier": "^3.2.5",
