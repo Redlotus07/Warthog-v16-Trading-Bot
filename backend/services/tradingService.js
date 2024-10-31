@@ -60,4 +60,22 @@ class TradingService {
 
     const currentMarketData = await marketDataService.getLatestData(trade.pair);
     trade.exit = {
-      price: currentMarket
+      price: currentMarket Data.currentPrice,
+      time: new Date()
+    };
+
+    trade.status = 'CLOSED';
+    await trade.save();
+
+    // Update bot's open trades
+    const bot = await Bot.findById(trade.bot);
+    bot.openTrades = bot.openTrades.filter(id => id.toString() !== tradeId.toString());
+    await bot.save();
+
+    performanceTracker.updatePerformance(trade);
+
+    return trade;
+  }
+}
+
+export const tradingService = new TradingService();
