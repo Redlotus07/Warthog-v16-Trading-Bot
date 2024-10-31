@@ -2,6 +2,18 @@
 import { Bot } from '../models/Bot.js';
 import { Trade } from '../models/Trade.js';
 
+export const getBotStatus = async (req, res) => {
+  try {
+    const bot = await Bot.findOne({});
+    if (!bot) {
+      return res.status(404).json({ message: 'Bot configuration not found' });
+    }
+    res.json({ active: bot.active, autoShutdownEnabled: bot.autoShutdownEnabled });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to get bot status' });
+  }
+};
+
 export const toggleBot = async (req, res) => {
   try {
     const { active } = req.body;
