@@ -1,4 +1,4 @@
-// src/components/Dashboard.js
+// src/components/Dashboard.tsx
 import React from 'react';
 import { Activity, TrendingUp, Shield, History, Settings } from 'lucide-react';
 import PerformanceMetrics from './PerformanceMetrics';
