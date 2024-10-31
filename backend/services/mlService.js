@@ -41,19 +41,17 @@ class MLService {
   }
 
   extractFeatures(trade) {
-    // Extract relevant features from the trade
     return [
       trade.entry,
       trade.exit || 0,
       trade.size,
       trade.leverage || 1,
-      // Add more features like market indicators, time of day, etc.
+      // Add more relevant features
     ];
   }
 
   async analyzeMarketCondition(pair) {
     // Implement market condition analysis
-    // This could include technical indicators, sentiment analysis, etc.
     return {
       trend: 'BULLISH',
       volatility: 'MEDIUM',
