@@ -1,56 +1,60 @@
+// backend/controllers/authController.js
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 import { User } from '../models/User.js';
-import { validateRegistration, validateLogin } from '../validators/authValidator.js';
+import { AppError } from '../utils/AppError.js';
 
-export const register = async (req, res) => {
+const signToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN
+  });
+};
+
+export const register = async (req, res, next) => {
   try {
-    const validatedData = validateRegistration(req.body);
-    
-    const userExists = await User.findOne({ email: validatedData.email });
-    if (userExists) {
-      return res.status(400).json({ message: 'User already exists' });
+    const { email, password } = req.body;
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return next(new AppError('Email already in use', 400));
     }
 
-    const user = await User.create(validatedData);
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: '30d'
-    });
+    const user = await User.create({ email, password });
+
+    const token = signToken(user._id);
 
     res.status(201).json({
+      status: 'success',
       token,
-      user: {
-        id: user._id,
-        email: user.email,
-        settings: user.settings
-      }
+      data: { user: { id: user._id, email: user.email } }
     });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    next(error);
   }
 };
 
-export const login = async (req, res) => {
+export const login = async (req, res, next) => {
   try {
-    const validatedData = validateLogin(req.body);
-    
-    const user = await User.findOne({ email: validatedData.email });
-    if (!user || !(await user.comparePassword(validatedData.password))) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return next(new AppError('Please provide email and password', 400));
     }
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: '30d'
-    });
+    const user = await User.findOne({ email }).select('+password');
 
-    res.json({
+    if (!user || !(await user.correctPassword(password, user.password))) {
+      return next(new AppError('Incorrect email or password', 401));
+    }
+
+    const token = signToken(user._id);
+
+    res.status(200).json({
+      status: 'success',
       token,
-      user: {
-        id: user._id,
-        email: user.email,
-        settings: user.settings
-      }
+      data: { user: { id: user._id, email: user.email } }
     });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    next(error);
   }
 };
