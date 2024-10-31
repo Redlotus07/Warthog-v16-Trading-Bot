@@ -1,11 +1,13 @@
-// backend/services/mlService.ts
+// backend/services/mlService.js
 import * as tf from '@tensorflow/tfjs-node';
-import { Trade } from '../models/Trade';
+import { Trade } from '../models/Trade.js';
 
 class MLService {
-  private models: Map<string, tf.LayersModel> = new Map();
+  constructor() {
+    this.models = new Map();
+  }
 
-  async initializeModel(pair: string) {
+  async initializeModel(pair) {
     const model = tf.sequential();
     model.add(tf.layers.dense({ units: 64, activation: 'relu', inputShape: [10] }));
     model.add(tf.layers.dense({ units: 32, activation: 'relu' }));
@@ -14,16 +16,16 @@ class MLService {
     this.models.set(pair, model);
   }
 
-  async predictTradeSuccess(pair: string, features: number[]): Promise<number> {
+  async predictTradeSuccess(pair, features) {
     if (!this.models.has(pair)) {
       await this.initializeModel(pair);
     }
-    const model = this.models.get(pair)!;
-    const prediction = model.predict(tf.tensor2d([features])) as tf.Tensor;
+    const model = this.models.get(pair);
+    const prediction = model.predict(tf.tensor2d([features]));
     return prediction.dataSync()[0];
   }
 
-  async updateModel(pair: string, trade: any) {
+  async updateModel(pair, trade) {
     const features = this.extractFeatures(trade);
     const label = trade.profit > 0 ? 1 : 0;
     
@@ -31,16 +33,15 @@ class MLService {
       await this.initializeModel(pair);
     }
     
-    const model = this.models.get(pair)!;
+    const model = this.models.get(pair);
     await model.fit(tf.tensor2d([features]), tf.tensor2d([[label]]), {
       epochs: 1,
       verbose: 0
     });
   }
 
-  private extractFeatures(trade: any): number[] {
+  extractFeatures(trade) {
     // Extract relevant features from the trade
-    // This is a simplified example; you should expand this based on your specific needs
     return [
       trade.entry,
       trade.exit || 0,
@@ -50,7 +51,7 @@ class MLService {
     ];
   }
 
-  async analyzeMarketCondition(pair: string) {
+  async analyzeMarketCondition(pair) {
     // Implement market condition analysis
     // This could include technical indicators, sentiment analysis, etc.
     return {
