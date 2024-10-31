@@ -1,73 +1,64 @@
-import { Trade } from '../models/Trade.js';
-import { marketDataService } from './marketDataService.js';
-import { newsService } from './newsTrading/newsService.js';
+// backend/services/mlService.ts
+import * as tf from '@tensorflow/tfjs-node';
+import { Trade } from '../models/Trade';
 
 class MLService {
-  constructor() {
-    this.models = new Map();
-    this.marketStates = new Map();
-    this.volatilityWindows = [14, 30, 60];
-    this.newsImpactModels = new Map();
+  private models: Map<string, tf.LayersModel> = new Map();
+
+  async initializeModel(pair: string) {
+    const model = tf.sequential();
+    model.add(tf.layers.dense({ units: 64, activation: 'relu', inputShape: [10] }));
+    model.add(tf.layers.dense({ units: 32, activation: 'relu' }));
+    model.add(tf.layers.dense({ units: 1, activation: 'sigmoid' }));
+    model.compile({ optimizer: 'adam', loss: 'binaryCrossentropy', metrics: ['accuracy'] });
+    this.models.set(pair, model);
   }
 
-  async analyzeMarketCondition(pair) {
-    const historicalData = await marketDataService.getHistoricalData(pair);
-    const volatility = this.calculateVolatility(historicalData);
-    const trend = this.analyzeTrend(historicalData);
-    const newsEvents = await newsService.getUpcomingEvents('24h');
-    
-    return {
-      volatility,
-      trend,
-      marketState: this.determineMarketState(volatility, trend),
-      newsImpact: await this.analyzeNewsImpact(pair, newsEvents)
-    };
-  }
-
-  async analyzeNewsImpact(pair, events) {
-    const relevantEvents = events.filter(event => 
-      newsService.getAffectedPairs(event.type).includes(pair)
-    );
-
-    if (!relevantEvents.length) return { score: 0, recommendation: 'NO_ACTION' };
-
-    const impactScores = await Promise.all(
-      relevantEvents.map(event => this.predictNewsImpact(pair, event))
-    );
-
-    return {
-      score: Math.max(...impactScores.map(s => s.score)),
-      events: relevantEvents.map((event, i) => ({
-        ...event,
-        predictedImpact: impactScores[i]
-      }))
-    };
-  }
-
-  async predictNewsImpact(pair, event) {
-    const modelKey = `${pair}_${event.type}`;
-    if (!this.newsImpactModels.has(modelKey)) {
-      await this.initializeNewsImpactModel(modelKey);
+  async predictTradeSuccess(pair: string, features: number[]): Promise<number> {
+    if (!this.models.has(pair)) {
+      await this.initializeModel(pair);
     }
+    const model = this.models.get(pair)!;
+    const prediction = model.predict(tf.tensor2d([features])) as tf.Tensor;
+    return prediction.dataSync()[0];
+  }
 
-    const model = this.newsImpactModels.get(modelKey);
-    const features = await this.extractNewsFeatures(event);
+  async updateModel(pair: string, trade: any) {
+    const features = this.extractFeatures(trade);
+    const label = trade.profit > 0 ? 1 : 0;
     
+    if (!this.models.has(pair)) {
+      await this.initializeModel(pair);
+    }
+    
+    const model = this.models.get(pair)!;
+    await model.fit(tf.tensor2d([features]), tf.tensor2d([[label]]), {
+      epochs: 1,
+      verbose: 0
+    });
+  }
+
+  private extractFeatures(trade: any): number[] {
+    // Extract relevant features from the trade
+    // This is a simplified example; you should expand this based on your specific needs
+    return [
+      trade.entry,
+      trade.exit || 0,
+      trade.size,
+      trade.leverage || 1,
+      // Add more features like market indicators, time of day, etc.
+    ];
+  }
+
+  async analyzeMarketCondition(pair: string) {
+    // Implement market condition analysis
+    // This could include technical indicators, sentiment analysis, etc.
     return {
-      score: model.predict(features),
-      confidence: model.getPredictionConfidence(),
-      recommendedAction: this.getNewsBasedAction(model.predict(features))
+      trend: 'BULLISH',
+      volatility: 'MEDIUM',
+      sentiment: 'POSITIVE'
     };
   }
-
-  getNewsBasedAction(impactScore) {
-    if (impactScore > 0.8) return 'STRONG_ENTRY';
-    if (impactScore > 0.6) return 'CAUTIOUS_ENTRY';
-    if (impactScore < 0.3) return 'AVOID_TRADING';
-    return 'MONITOR';
-  }
-
-  // ... rest of the existing MLService methods ...
 }
 
 export const mlService = new MLService();
